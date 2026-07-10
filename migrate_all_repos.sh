@@ -4,7 +4,8 @@ set -e
 # =======================
 # CONFIGURATION
 # =======================
-GITLAB_URL=${GITLAB_URL:-"https://version.aalto.fi/gitlab"}
+GITLAB_URL=${GITLAB_URL:-"https://gitlab.lms.fau.de"}
+GITLAB_API_BASE=${GITLAB_URL%/}
 GITLAB_USER=${GITLAB_USER:-""}
 GITLAB_TOKEN=${GITLAB_TOKEN:-""}
 GITHUB_USER=${GITHUB_USER:-""}
@@ -22,10 +23,10 @@ fi
 # =======================
 echo "Fetching GitLab repositories for $GITLAB_USER ..."
 
-# Use membership-based API for Aalto GitLab
+# Use membership-based API
 curl --silent --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-  "$GITLAB_URL/api/v4/projects?membership=true&per_page=100" \
-  | grep -o '"ssh_url_to_repo":"[^"]*"' | cut -d'"' -f4 > gitlab_repos.txt
+  "$GITLAB_API_BASE/api/v4/projects?membership=true&per_page=100" \
+  | grep -o '"http_url_to_repo":"[^"]*"' | cut -d'"' -f4 > gitlab_repos.txt
 
 REPO_COUNT=$(wc -l < gitlab_repos.txt)
 echo "Found $REPO_COUNT repositories."
@@ -63,7 +64,8 @@ while read -r REPO_URL; do
 
   # --- Clone mirror from GitLab ---
   echo "Cloning $REPO_NAME from GitLab ..."
-  git clone --mirror "$REPO_URL"
+  AUTH_REPO_URL=${REPO_URL/https:\/\//https:\/\/oauth2:$GITLAB_TOKEN@}
+  git clone --mirror "$AUTH_REPO_URL"
 
   cd "$REPO_NAME.git"
 
